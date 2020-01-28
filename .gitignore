@@ -1,0 +1,5 @@
+# composer package patch
+vendor/
+composer.lock
+# OSX
+.DS_Store
