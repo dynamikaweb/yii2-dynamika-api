@@ -16,11 +16,12 @@ use yii\web\HttpException;
  * 
  * *
  * 
- * @version 1.0 (12/09/2019) => primeira versÃ£o funcional
- * @version 2.0 (08/11/2019) => suporte de arquivos
- * @version 2.1 (27/11/2019) => request especial [banner/artigo]
- * @version 2.2 (20/01/2020) => links absolutos e target system
- * @version 2.3 (23/01/2020) => exibir localalização do arquivo
+ * @version 1.0     (12/09/2019) => primeira versÃ£o funcional
+ * @version 2.0     (08/11/2019) => suporte de arquivos
+ * @version 2.1     (27/11/2019) => request especial [banner/artigo]
+ * @version 2.2     (20/01/2020) => links absolutos e target system
+ * @version 2.3     (23/01/2020) => exibir localalização do arquivo
+ * @version 2.3.1   (28/01/2020) => correções gerais para API global
  * @author Rodrigo Dornelles <rodrigo@dornelles.me> <rodrigo@dynamika.com.br>
  * 
  * *
@@ -39,17 +40,19 @@ use yii\web\HttpException;
  *   "type": "yii\\web\\Application"    
  */
 
-class ApiController extends \yii\base\Controller
+class BaseApiController extends \yii\web\Controller
 {
     /**
-     * @property MODULOS
+     * modulos
      * 
      * Modulos autorizados a serem consumidos pela @api
      * 
+     * @return array
      */
-    const MODULOS = [
-        
-    ];
+    public static function modulos()
+    {
+        return [];
+    }
 
     /**
      * beforeAction
@@ -343,7 +346,7 @@ class ApiController extends \yii\base\Controller
      */
     private static function can($modulo)
     {
-        if( array_search($modulo, self::MODULOS) === false ){
+        if( array_search($modulo, static::modulos()) === false ){
             throw new HttpException(403, 'Não autorizado!');
         }
     }
@@ -362,13 +365,13 @@ class ApiController extends \yii\base\Controller
         // link da aplicação
         $url = Url::base(true).'/';
 
+        // não tem o que substituir
+        if(!isset($database[0]['descricao'])){
+            return $database;
+        }
+
         foreach ($database as $index => $data)
         {
-            // caso não possuir campo descrição ignorar função
-            if (!isset($data['descricao'])){
-                break;
-            }
-
             // capturar conteudo
             $data = $data['descricao'];
 
