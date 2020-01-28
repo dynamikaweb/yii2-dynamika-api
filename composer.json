@@ -1,5 +1,5 @@
 {
-    "name": "dynamikaweb/yii2-helpers",
+    "name": "dynamikaweb/yii2-dynamika-api",
     "description": "API Controller for dynamika projects",
     "type": "yii2-extension",
     "keywords": [
