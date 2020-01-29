@@ -7,7 +7,8 @@ dynamikaweb/yii2-dynamika-api (API Controller)
 [![Build Test](https://scrutinizer-ci.com/g/dynamikaweb/yii2-dynamika-api/badges/build.png?b=master)](https://scrutinizer-ci.com/g/dynamikaweb/yii2-dynamika-api/)
 ![Latest Unstable Version](https://poser.pugx.org/dynamikaweb/yii2-1doc-api/v/unstable)
 
-
+> **Aviso!** está api é de exclusividade de _Dynamika Soluções Web LTDA_ e só funcionara em projetos utilizando a estrutura da mesma, o código fonte demostrado está documentado para utilização de terceiros sobre o consumo e funcionamento do serviço, não deve ser possível instalar em outra estrutura!
+<br/>
 
 Instalação
 ------------
@@ -48,7 +49,7 @@ class ApiController extends \dynamikaweb\api\BaseApiController
 }
 ```
 
-Como usar
+Como utilizar
 -----
 
-* **Leia a documentação:** [https://github.com/dynamikaweb/yii2-dynamika-api/wiki](https://github.com/dynamikaweb/yii2-dynamika-api/wiki)
+  * **Leia a documentação:** [https://github.com/dynamikaweb/yii2-dynamika-api/wiki](https://github.com/dynamikaweb/yii2-dynamika-api/wiki)
