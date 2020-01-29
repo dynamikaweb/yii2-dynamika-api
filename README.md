@@ -1,5 +1,8 @@
 Dynamika API Controller
 ==================
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/e64769c64d9d4c79899e1bd7ab4541fa)](https://app.codacy.com/gh/dynamikaweb/yii2-dynamika-api?utm_source=github.com&utm_medium=referral&utm_content=dynamikaweb/yii2-dynamika-api&utm_campaign=Badge_Grade_Settings)
+
 base para o controller utilizado como restful api em projetos da dynamika, verificar documentação sobre o funcionamento para o consumo de dados.
 
  * master link: https://crpsp.org/api
