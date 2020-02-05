@@ -22,6 +22,7 @@ use yii\web\HttpException;
  * @version 2.2     (20/01/2020) => links absolutos e target system
  * @version 2.3     (23/01/2020) => exibir localalização do arquivo
  * @version 2.3.1   (28/01/2020) => correções gerais para API global
+ * @version 2.4     (05/02/2020) => Melhorias no feedback de resposta
  * @author Rodrigo Dornelles <rodrigo@dornelles.me> <rodrigo@dynamika.com.br>
  * 
  * *
@@ -42,6 +43,8 @@ use yii\web\HttpException;
 
 class BaseApiController extends \yii\web\Controller
 {
+    protected $count = 0;
+
     /**
      * modulos
      * 
@@ -68,6 +71,37 @@ class BaseApiController extends \yii\web\Controller
         // Formato de saida sera em json
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
+        // Formato de estrura em ['sucess','count','data]
+        Yii::$app->response->on(\yii\web\Response::EVENT_BEFORE_SEND, function ($event) {
+                // yii\web\Response
+                $response = $event->sender;
+
+                // Dados
+                $count = $response->isSuccessful? $this->count: 0;
+                $success = $response->isSuccessful;                
+                $data = $response->data;        
+                
+                // Esconder classe do erro
+                if  (!$success) {
+                    \yii\helpers\ArrayHelper::remove($data, 'type');
+                }
+                
+                // Suprimir o status code
+                if (Yii::$app->request->get('suppress_response_code')){
+                    $response->statusCode = 200;
+                }
+
+
+                // Saida
+                $response->data = [
+                    'success' => $success,
+                    'count' => $count,
+                    'data' => $data                    
+                ];
+            }
+        );
+
+
         // Verificar autorizaÃ§Ã£o do modulo
         if( $modulo = Yii::$app->request->get('modulo') ){
             self::can($modulo);
@@ -86,10 +120,7 @@ class BaseApiController extends \yii\web\Controller
      */
     public function actionIndex()
     {        
-        return $this->json( true, [
-            'name' => Yii::$app->controller->id.'/status',
-            'message' => 'API está funcionando!'
-        ]);
+        return "API está funcionando!";
     }
 
     /**
@@ -105,11 +136,13 @@ class BaseApiController extends \yii\web\Controller
     {
         // ActiveDataProvider Search
         $dataProvider = $this->findModels($modulo);
-        $models = $dataProvider->getModels();
-        $count = $dataProvider->getCount();
+        $models = $dataProvider->getModels();  
+        
+        // Numero de registros
+        $this->count = $dataProvider->getCount();
 
         // Verifica foi encontrado registros
-        if($count == 0){
+        if($this->count == 0){
             throw new HttpException(404,'Nenhum registro foi encontrado!');
         }
 
@@ -164,7 +197,7 @@ class BaseApiController extends \yii\web\Controller
         }
 
         // Output
-        return $this->json($files? $data: $models, ['count' => $count]);
+        return $files? $data: $models;
     }
 
     /**
@@ -182,10 +215,12 @@ class BaseApiController extends \yii\web\Controller
     {
         $dataProvider = $this->findModels($modulo);
         $models = $dataProvider->getModels();
-        $count = $dataProvider->getCount();
+
+        // Numero de registros
+        $this->count = $dataProvider->getCount();
 
         // Verifica foi encontrado registros
-        if($count == 0){
+        if($this->count == 0){
             throw new HttpException(404,'Nenhum registro foi encontrado!');
         }
 
@@ -207,16 +242,16 @@ class BaseApiController extends \yii\web\Controller
         }
 
         // Contar arquivos
-        $count = count($arquivos);
+        $this->count = count($arquivos);
 
 
         // Verifica foi encontrado registros
-        if($count == 0){
+        if($this->count == 0){
             throw new HttpException(404,'Nenhum arquivo foi encontrado!');
         }
 
         
-        return $this->json($arquivos, ['count' => $count]);
+        return $arquivos;
     }
 
 
@@ -236,20 +271,22 @@ class BaseApiController extends \yii\web\Controller
 
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
         $models = $dataProvider->getModels();
-        $count = $dataProvider->getCount();
+
+        // Numero de registros
+        $this->count = $dataProvider->getCount();
 
         // Verifica foi encontrado registros
-        if($count == 0){
+        if($this->count == 0){
             throw new HttpException(404,'Nenhum Banner foi encontrado!');
         }
 
-        $data = array();
+        $arquivos = array();
 
         foreach ($models as $model) {
-            $data []= $model->arquivo->getFileUrl('banner', $prefix);
+            self::importFile($arquivos, $model->arquivo, 'banner', $prefix, 'arquivo');
         }
         
-        return $this->json($data, ['count' => $count]);
+        return $arquivos;
     }
 
     /**
@@ -304,33 +341,6 @@ class BaseApiController extends \yii\web\Controller
         ];
 
         return true;
-    }
-
-
-    /**
-     * json
-     * 
-     * formata array para padrÃ£o de saida da @api
-     *
-     * @param  mixed $data dados para ser consumidos pela @api
-     * @param  mixed $params parametros de resposta personalizado
-     *
-     * @return array saida da @api
-     */
-    private function json($data, $params = [])
-    {
-        // parametros de resposta
-        $default = [
-            'name' => Yii::$app->controller->id.'/'.Yii::$app->controller->action->id,
-            'message' => 'Concluído com sucesso!',
-            'code' => 1,
-            'status' => 200,
-            'type' => 'yii\\web\\Application',
-            'data' => self::parser($data) 
-        ];
-
-        // parametros personalizados sobrepoem os padrÃµes
-        return ArrayHelper::merge($default, $params);
     }
 
 
