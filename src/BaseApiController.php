@@ -4,6 +4,7 @@ namespace dynamikaweb\api;
 use Yii;
 
 use yii\helpers\Url;
+use yii\helpers\Json;
 use yii\helpers\ArrayHelper;
 use yii\web\HttpException;
 
@@ -43,6 +44,11 @@ use yii\web\HttpException;
 
 class BaseApiController extends \yii\web\Controller
 {
+    const LOCAL_UPDATE = [
+        'date' => '2020-02-05 23:59:59',
+        'version' => '2.4.1'
+    ];
+
     protected $count = 0;
 
     /**
@@ -84,6 +90,9 @@ class BaseApiController extends \yii\web\Controller
                 // Esconder classe do erro
                 if  (!$success) {
                     \yii\helpers\ArrayHelper::remove($data, 'type');
+                } else {
+                    // Ajustes de dados
+                    $data = $this->parser($data);
                 }
                 
                 // Suprimir o status code
@@ -116,11 +125,75 @@ class BaseApiController extends \yii\web\Controller
      *
      * estado de funcionamento da api
      * 
-     * @return array @api
+     * @return string API está funcionando!
      */
     public function actionIndex()
     {        
         return "API está funcionando!";
+    }
+
+    /**
+     * actionInfo
+     *
+     * informações sobre a API
+     * 
+     * @todo comparar versões [local/repo]
+     * 
+     * @return array
+     */
+    public function actionInfo()
+    {        
+        // valores defaults
+        $message = $this->actionIndex();
+        $modulos = static::modulos();
+        $local_version = static::LOCAL_UPDATE['version'];
+        $last_version = null;
+        $updated = true;
+
+        try {
+            // consultar por atualizações na api do github
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_URL, 'https://api.github.com/repos/dynamikaweb/yii2-dynamika-api/releases/latest');
+            curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            // decodificar json
+            $githubApi = Json::decode($response, true);
+
+            // extrair informações
+            $last_version = ArrayHelper::getValue($githubApi, 'tag_name');
+            $last_data = ArrayHelper::getValue($githubApi, 'published_at');
+
+            // verificar se foi possivel buscar por atualizações
+            if (!$githubApi || $last_version === null){
+                throw new \yii\base\Exception('Não foi possível buscar por atualizações');
+            }
+
+            // datas [repo/local]
+            $last_data = new \DateTime($last_data);
+            $local_data = new \DateTime(static::LOCAL_UPDATE['date']);
+
+            // comparar se api está atualizada
+            if ($local_data < $last_data){
+                throw new \yii\base\Exception('API está desatualizada!');
+            }      
+        } catch (\yii\base\Exception $e) {
+            // houve um problema sobre a atualização
+            $message = $e->getMessage();
+            $updated = false;
+        }        
+
+        // output
+        return [
+            'updated' => $updated,
+            'message' => $message,
+            'last_version' => $last_version,
+            'local_version' => $local_version,
+            'modulos' => $modulos
+        ];
     }
 
     /**
@@ -194,10 +267,12 @@ class BaseApiController extends \yii\web\Controller
                     }
                 }
             }
+            // models with files
+            $models = $data;
         }
 
         // Output
-        return $files? $data: $models;
+        return $models;
     }
 
     /**
@@ -209,7 +284,7 @@ class BaseApiController extends \yii\web\Controller
      * @param  integer $id => identificador do documento
      * @param  string $size => tamanho das imagens
      * 
-     * @return void
+     * @return array
      */
     public function actionFiles($modulo, $id, $size = 'thumb_')
     {
@@ -260,7 +335,7 @@ class BaseApiController extends \yii\web\Controller
      * 
      * retorna um array de links para os banners (json)
      *
-     * @return object Banners
+     * @return array  Banners
      */
     public function actionBanners($prefix = 'original_')
     {
