@@ -16,14 +16,7 @@ use yii\web\HttpException;
  * Consulta de dados do site
  * 
  * *
- * 
- * @version 1.0     (12/09/2019) => primeira versÃ£o funcional
- * @version 2.0     (08/11/2019) => suporte de arquivos
- * @version 2.1     (27/11/2019) => request especial [banner/artigo]
- * @version 2.2     (20/01/2020) => links absolutos e target system
- * @version 2.3     (23/01/2020) => exibir localalização do arquivo
- * @version 2.3.1   (28/01/2020) => correções gerais para API global
- * @version 2.4     (05/02/2020) => Melhorias no feedback de resposta
+ * @copyright Dynamika Soluções WEB [ltda]
  * @author Rodrigo Dornelles <rodrigo@dornelles.me> <rodrigo@dynamika.com.br>
  * 
  * *
@@ -31,25 +24,59 @@ use yii\web\HttpException;
  * @throws Http 400 Bad Request
  * @throws Http 403 Forbiden
  * @throws Http 404 Not Found
+ * @throws Http 415 The requested response format is not supported
  * 
  * *
  * 
- * @example     
- *   "name":"Status"
- *   "message":"API está funcionando!"
- *   "code":1
- *   "status":200
- *   "type": "yii\\web\\Application"    
+ * @example https://github.com/dynamikaweb/yii2-dynamika-api/wiki
  */
 
 class BaseApiController extends \yii\web\Controller
 {
-    const LOCAL_UPDATE = [
-        'date' => '2020-02-05 23:59:59',
-        'version' => '2.4.1'
-    ];
+    const DEFAULT_PAGE_SIZE = 1;
 
-    protected $count = 0;
+    const DEFAULT_ORDER = ['id' => SORT_DESC];
+
+    const DEFAULT_USE_FILE = false;
+
+        
+    const FORMAT_DEFAULT = \yii\web\Response::FORMAT_JSON;
+    const FORMAT_JSONP = \yii\web\Response::FORMAT_JSONP;
+    const FORMAT_JSON = \yii\web\Response::FORMAT_JSON;
+    const FORMAT_XML = \yii\web\Response::FORMAT_XML;
+    const FORMAT_YAML = 'yaml';
+    const FORMAT_PHP = 'php';
+
+    public $count = 0;
+
+    /**
+     * @inheritdoc
+     */
+    public function behaviors()
+    {
+        return [
+            'apiBehavior' => [
+                'class' => \dynamikaweb\api\behaviors\ApiResponse::className(),
+                'formatAdd' => [
+                    self::FORMAT_YAML,
+                    self::FORMAT_PHP,
+                ],
+            ],
+            'contentNegotiator' => [
+                'class' => \dynamikaweb\api\behaviors\ContentNegotiator::className(),
+                'formatParam' => 'format',
+                'formatDefault' => self::FORMAT_DEFAULT,
+                'formats' => [                    
+                    'application/jsonp' => self::FORMAT_JSONP,
+                    'application/json' => self::FORMAT_JSON,
+                    'application/yaml' => self::FORMAT_YAML,
+                    'application/xml' => self::FORMAT_XML,
+                    'application/php' => self::FORMAT_PHP,
+                ],
+            ],
+        ];
+    }
+
 
     /**
      * modulos
@@ -62,61 +89,25 @@ class BaseApiController extends \yii\web\Controller
     {
         return [];
     }
-
+    
     /**
-     * beforeAction
+     * afterAction
      * 
-     * antes da acton ser chamada
-     *
-     * @param  object $action
-     *
-     * @return boolean run action
+     * @param object $action 
+     * @param mixed resultado
+     * 
+     * @todo comentario sobre $this->parser()
+     * 
+     * @throws HttpException 415 {format} não é de resposta aceito pelo servidor.
+     * 
+     * @return boolean
      */
-    public function beforeAction($action)
+    public function afterAction($action, $result)
     {
-        // Formato de saida sera em json
-        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $result = parent::afterAction($action, $result);    
+        $result = $this->parser($result);
 
-        // Formato de estrura em ['sucess','count','data]
-        Yii::$app->response->on(\yii\web\Response::EVENT_BEFORE_SEND, function ($event) {
-                // yii\web\Response
-                $response = $event->sender;
-
-                // Dados
-                $count = $response->isSuccessful? $this->count: 0;
-                $success = $response->isSuccessful;                
-                $data = $response->data;        
-                
-                // Esconder classe do erro
-                if  (!$success) {
-                    \yii\helpers\ArrayHelper::remove($data, 'type');
-                } else {
-                    // Ajustes de dados
-                    $data = $this->parser($data);
-                }
-                
-                // Suprimir o status code
-                if (Yii::$app->request->get('suppress_response_code')){
-                    $response->statusCode = 200;
-                }
-
-
-                // Saida
-                $response->data = [
-                    'success' => $success,
-                    'count' => $count,
-                    'data' => $data                    
-                ];
-            }
-        );
-
-
-        // Verificar autorizaÃ§Ã£o do modulo
-        if( $modulo = Yii::$app->request->get('modulo') ){
-            self::can($modulo);
-        }
-
-        return parent::beforeAction($action); 
+        return $result;
     }
 
 
@@ -125,11 +116,11 @@ class BaseApiController extends \yii\web\Controller
      *
      * estado de funcionamento da api
      * 
-     * @return string API está funcionando!
+     * @return array message => API está funcionando!
      */
     public function actionIndex()
     {        
-        return "API está funcionando!";
+        return ['message' => 'API está funcionando!'];
     }
 
     /**
@@ -140,11 +131,11 @@ class BaseApiController extends \yii\web\Controller
      * @todo comparar versões [local/repo]
      * 
      * @return array
-     */
+     *
     public function actionInfo()
     {        
         // valores defaults
-        $message = $this->actionIndex();
+        $message = 'API está atualizada!';
         $modulos = static::modulos();
         $local_version = static::LOCAL_UPDATE['version'];
         $last_version = null;
@@ -195,6 +186,7 @@ class BaseApiController extends \yii\web\Controller
             'modulos' => $modulos
         ];
     }
+    */
 
     /**
      * actionView
@@ -205,72 +197,14 @@ class BaseApiController extends \yii\web\Controller
      *
      * @return array @api
      */
-    public function actionView($modulo, $files = false, $size = 'thumb_')
+    public function actionView($modulo)
     {
         // ActiveDataProvider Search
         $dataProvider = $this->findModels($modulo);
         $models = $dataProvider->getModels();  
-        
-        // Numero de registros
-        $this->count = $dataProvider->getCount();
-
-        // Verifica foi encontrado registros
-        if($this->count == 0){
-            throw new HttpException(404,'Nenhum registro foi encontrado!');
-        }
-
-        // incluir arquivos junto ao registro?
-        if ($files){
-            // instanciado data
-            $data = array();
-
-            // Adiciona arquivos aos registros
-            foreach ($models as $key =>  $model) {
-                // convert model to array
-                $data []= ArrayHelper::toArray($model);
-                
-                // modulo possui arquivo unico
-                if ($model->canGetProperty('arquivo')){
-                    // adicionar arquivo unico
-                    if($arquivo = $model->arquivo){
-                        //importar arquivo para o registro
-                        self::importFile($data[$key]['files'], $arquivo, $modulo, $size, 'arquivo');
-                    }
-                }
-
-                // modulo possui arquivo unico
-                if ($model->canGetProperty('id_banner')){
-                    // adicionar arquivo unico
-                    if($arquivo = $model->banner){
-                        //importar arquivo para o registro
-                        self::importFile($data[$key]['files'], $arquivo, $modulo, $size, 'banner');
-                    }
-                }
-
-                // modulo possui arquivo unico
-                if ($model->canGetProperty('id_capa')){
-                    // adicionar arquivo unico
-                    if($arquivo = $model->capa){
-                        //importar arquivo para o registro
-                        self::importFile($data[$key]['files'], $arquivo, $modulo, $size, 'capa');
-                    }
-                }
-
-                // modulo possui arquivos multiplos
-                if ($model->canGetProperty('arquivos')){
-                    // adicionar arquivos multiplos
-                    if($arquivos = $model->arquivos){
-                        foreach($arquivos as $arquivo){
-                            // importar arquivo para o registro
-                            self::importFile($data[$key]['files'], $arquivo, $modulo, $size, 'arquivos');
-                        }
-                    }
-                }
-            }
-            // models with files
-            $models = $data;
-        }
-
+    
+        #$models = script\ImportFile::all();
+    
         // Output
         return $models;
     }
@@ -370,21 +304,37 @@ class BaseApiController extends \yii\web\Controller
      * encontra os registros de acordo com o modulo
      *
      * @param  string $modulo Modulo
+     * 
+     * @throws HttpException 403|404 Não autorizado!|Nenhum registro foi encontrado!
      *
      * @return object data provider
      */
-    private function findModels($modulo, $limit = 1)
+    private function findModels($modulo)
     {
+        // verificar permissão
+        if (\yii\helpers\ArrayHelper::isIn($modulo, static::modulos()) != true) {
+            throw new \yii\web\HttpException(403, 'Não autorizado!');
+        } 
+
         // Classe {modulo}Search 
-        $modulo = '\common\models\search\\'.ucfirst($modulo).'Search';        
+        $moduloClass = '\common\models\search\\'.ucfirst($modulo).'Search';        
         
-        // Filters SearchModel
-        $searchModel = new $modulo;
-        $searchModel->pageSize = Yii::$app->request->get('limit', $limit);
-        $searchModel->id = Yii::$app->request->get('id', null);
+        // Filtros ActiveRecord
+        $searchModel = new $moduloClass;
+        $searchModel->pageSize = Yii::$app->request->get('limit', static::DEFAULT_PAGE_SIZE); // Numero de registros por paginas
+        $searchModel->order = Yii::$app->request->get('order', static::DEFAULT_ORDER); // Ordem dos registros
+        $searchModel->id = Yii::$app->request->get('id', null); // Alias para ModuloSearch[id]
         
-        // ActiveDataProvider Search
+        // ActiveDataProvider resultado
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+
+        // Verificar quantidade de registros
+        if ($dataProvider->getCount() == 0){
+            throw new \yii\web\HttpException(404, 'Nenhum registro foi encontrado!');
+        }
+
+        // Numero de registros
+        $this->count = $dataProvider->getCount();  
 
         return $dataProvider;
     }
@@ -416,24 +366,6 @@ class BaseApiController extends \yii\web\Controller
         ];
 
         return true;
-    }
-
-
-    /**
-     * can
-     * 
-     * verifica se o modulo estÃ¡ disponivel para utilizaÃ§Ã£o
-     *
-     * @param  string $modulo
-     * @throws HttpException 403 NÃ£o autorizado, se nÃ£o for possivel encontrar o modulo.
-     *
-     * @return void 
-     */
-    private static function can($modulo)
-    {
-        if( array_search($modulo, static::modulos()) === false ){
-            throw new HttpException(403, 'Não autorizado!');
-        }
     }
 
     /**

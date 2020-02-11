@@ -24,8 +24,12 @@
         "php": ">=5.5.0",
         "yiisoft/yii2": "*"
     },
+    "require-dev": {
+        "codeception/verify": "^1.0",
+        "codacy/coverage": "*"
+    },
     "minimum-stability": "dev",
-    "prefer-stable": false,
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "dynamikaweb\\api\\": "src"
